@@ -1,7 +1,40 @@
 [project]
 name = "autorigami-cpp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Python wrapper utilities for autorigami C++ binaries"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "numpy>=2.3.0",
+    "scipy>=1.16.0",
+    "trimesh>=4.8.0",
+]
+
+[project.scripts]
+autorigami-cpp = "autorigami_cpp.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/autorigami_cpp"]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+    "ruff>=0.15.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["surface-filling-curve-flows"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
