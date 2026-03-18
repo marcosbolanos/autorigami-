@@ -1,0 +1,3 @@
+[submodule "surface-filling-curve-flows"]
+	path = surface-filling-curve-flows
+	url = https://github.com/marcosbolanos/surface-filling-curve-flows
