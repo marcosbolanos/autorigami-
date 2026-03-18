@@ -2,33 +2,23 @@
 
 Automatic generation of DNA origamis leveraging a C++ optimizer.
 
-## Python development environment (uv)
+## Quick start
 
-This repository uses a `src/` Python package layout and can be installed in editable mode.
-
-1. Create/sync the environment:
+Set up Python and tooling with `uv`:
 
 ```bash
 uv sync
+uv sync --group dev
 ```
 
-2. Install the package in editable mode:
+Run linting and type checks:
 
 ```bash
-uv pip install -e .
-```
-
-3. Install and run dev tooling:
-
-```bash
-uv add --dev ruff pyright
 uv run ruff check .
 uv run pyright
 ```
 
-Runtime 3D packages are included in the project dependencies (`trimesh`, `numpy`, `scipy`).
-
-## Build C++ binaries
+## Build the C++ project
 
 From the repository root:
 
@@ -38,12 +28,7 @@ cmake -S surface-filling-curve-flows -B surface-filling-curve-flows/build
 cmake --build surface-filling-curve-flows/build -j6
 ```
 
-Expected binaries:
-
-- `surface-filling-curve-flows/build/bin/curve_on_surface`
-- `surface-filling-curve-flows/build/bin/mesh_deformation`
-
-## Python wrapper around C++ executables
+## Run through Python
 
 Module: `autorigami_cpp`
 
@@ -51,9 +36,7 @@ Module: `autorigami_cpp`
 - `run_surface_filling_binary(...)` runs either binary from Python.
 - `run_capsule_scene(...)` handles input/output orchestration entirely in Python.
 
-### End-to-end run managed by Python
-
-The Python wrapper now handles both inputs and outputs:
+The Python wrapper handles both inputs and outputs:
 
 1. Uses a model you provide via CLI/Python (`--model`), or defaults to the bundled capsule asset at `src/autorigami_cpp/assets/simple_capsule_basic_watertight.obj`.
 2. Creates a new timestamped directory under `outputs/` named `outputs_DATETIME`.
@@ -68,7 +51,7 @@ uv run autorigami-cpp --build --binary curve_on_surface
 uv run autorigami-cpp --build --binary curve_on_surface --model /path/to/mesh.obj
 ```
 
-Use `--arg` repeatedly to pass through flags to the C++ executable unchanged.
+Use `--arg` repeatedly to pass flags through to the C++ executable unchanged.
 
 Python usage:
 
