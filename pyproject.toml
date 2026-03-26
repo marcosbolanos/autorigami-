@@ -12,6 +12,7 @@ dependencies = [
 
 [project.scripts]
 autorigami-cpp = "autorigami_cpp.cli:main"
+autorigami-bezier = "autorigami_cpp.bezier_cli:main"
 
 [build-system]
 requires = ["hatchling>=1.27.0"]

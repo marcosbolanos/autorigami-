@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -7,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from subprocess import CompletedProcess, run
 from typing import Any
+
+from .bezier_postprocess import FitResult, fit_curve_obj_with_beziers
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CPP_PROJECT_DIR = REPO_ROOT / "surface-filling-curve-flows"
@@ -21,6 +24,12 @@ class CapsuleRunPaths:
     output_dir: Path
     mesh_file: Path
     scene_file: Path
+
+
+@dataclass(frozen=True)
+class BezierRunArtifacts:
+    curve_obj: Path
+    fit: FitResult
 
 
 def build_surface_filling_curve_flows(
@@ -84,7 +93,11 @@ def run_surface_filling_binary(
 
 
 def make_output_run_dir(base_outputs_dir: str | Path | None = None) -> Path:
-    outputs_dir = Path(base_outputs_dir) if base_outputs_dir is not None else REPO_ROOT / "outputs"
+    outputs_dir = (
+        Path(base_outputs_dir).expanduser().resolve()
+        if base_outputs_dir is not None
+        else REPO_ROOT / "outputs"
+    )
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -105,6 +118,7 @@ def prepare_scene_run(
     radius: float = 0.1,
     h: float = 0.02,
     execute_only: bool = True,
+    scene_lines_extra: Sequence[str] = (),
 ) -> CapsuleRunPaths:
     output_dir = make_output_run_dir(base_outputs_dir)
 
@@ -121,6 +135,7 @@ def prepare_scene_run(
         f"radius {radius}",
         f"h {h}",
     ]
+    scene_lines.extend(scene_lines_extra)
     if execute_only:
         scene_lines.append("excecute_only")
 
@@ -140,6 +155,7 @@ def run_capsule_scene(
     radius: float = 0.1,
     h: float = 0.02,
     execute_only: bool = True,
+    scene_lines_extra: Sequence[str] = (),
     extra_args: Sequence[str] = (),
     check: bool = True,
     capture_output: bool = False,
@@ -151,7 +167,14 @@ def run_capsule_scene(
         radius=radius,
         h=h,
         execute_only=execute_only,
+        scene_lines_extra=scene_lines_extra,
     )
+
+    merged_env = dict(os.environ)
+    if env is not None:
+        merged_env.update(env)
+    if execute_only:
+        merged_env.setdefault("POLYSCOPE_BACKEND", "openGL_mock")
 
     process = run_surface_filling_binary(
         binary_name,
@@ -162,7 +185,7 @@ def run_capsule_scene(
         extra_args=extra_args,
         check=check,
         capture_output=capture_output,
-        env=env,
+        env=merged_env,
     )
 
     return run_paths, process
@@ -182,6 +205,45 @@ def prepare_capsule_run(
         h=h,
         execute_only=execute_only,
     )
+
+
+def find_latest_curve_obj(run_dir: str | Path) -> Path:
+    run_dir = Path(run_dir)
+    curve_paths = sorted(
+        (run_dir / "objs").glob("curve_*.obj"),
+        key=lambda path: int(path.stem.split("_")[1]),
+    )
+    if not curve_paths:
+        raise FileNotFoundError(f"No exported curve OBJ found under {run_dir / 'objs'}")
+    return curve_paths[-1]
+
+
+def generate_beziers_for_run(
+    run_dir: str | Path,
+    *,
+    nm_per_unit: float,
+    validation_tol_nm: float | None = 0.01,
+    glb_tessellation_tol_nm: float = 0.005,
+    glb_tessellation_max_depth: int = 9,
+    required_rmin_nm: float | None = None,
+    required_min_separation_nm: float | None = None,
+    tube_radius_nm: float = 0.5,
+    output_subdir: str = "bezier_final",
+) -> BezierRunArtifacts:
+    run_dir = Path(run_dir)
+    curve_obj = find_latest_curve_obj(run_dir)
+    fit = fit_curve_obj_with_beziers(
+        curve_obj,
+        nm_per_unit=nm_per_unit,
+        validation_tol_nm=validation_tol_nm,
+        glb_tessellation_tol_nm=glb_tessellation_tol_nm,
+        glb_tessellation_max_depth=glb_tessellation_max_depth,
+        required_rmin_nm=required_rmin_nm,
+        required_min_separation_nm=required_min_separation_nm,
+        tube_radius_nm=tube_radius_nm,
+        output_dir=run_dir / output_subdir,
+    )
+    return BezierRunArtifacts(curve_obj=curve_obj, fit=fit)
 
 
 def run_curve_on_surface(
